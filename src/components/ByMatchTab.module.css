@@ -1,0 +1,178 @@
+.wrap {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.matchCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.matchHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--color-surface-2);
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+}
+
+.teams {
+  font-size: 16px;
+  font-weight: 700;
+  flex: 1;
+}
+
+.score {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--color-accent);
+  letter-spacing: 1px;
+}
+
+.stageBadge {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+.pts {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.predictionsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1px;
+  background: var(--color-border);
+}
+
+.predCell {
+  background: var(--color-surface);
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.predName {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.predBet {
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.exact { background: var(--color-exact); }
+.direction { background: var(--color-direction); }
+.miss { background: var(--color-miss); }
+.pending { background: var(--color-pending); }
+
+.noBet {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.distSection {
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.distTitle {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-bottom: 10px;
+}
+
+.distList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.distItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
+.distScore {
+  font-weight: 700;
+}
+
+.distCount {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.distItemMatch {
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+}
+
+.liveBadge {
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--color-miss);
+  color: #fff;
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-right: 6px;
+  vertical-align: middle;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.liveNote {
+  padding: 8px 16px;
+  font-size: 12px;
+  color: var(--color-accent);
+  background: rgba(240, 180, 41, 0.07);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dotProjected {
+  border: 1.5px dashed rgba(255,255,255,0.5);
+  box-sizing: border-box;
+}
+
+.sectionLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  padding: 4px 2px 8px;
+  letter-spacing: 0.3px;
+}

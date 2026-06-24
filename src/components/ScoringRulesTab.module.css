@@ -1,0 +1,81 @@
+.wrap {
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 640px;
+}
+
+.section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.sectionTitle {
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-accent);
+  background: var(--color-surface-2);
+  border-bottom: 1px solid var(--color-border);
+  letter-spacing: 0.3px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--color-border);
+  gap: 12px;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.stage {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.points {
+  display: flex;
+  gap: 20px;
+}
+
+.ptItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.ptValue {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.ptLabel {
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.bonus {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.bonus:last-child {
+  border-bottom: none;
+}
+
+.bonusPts {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-accent);
+}

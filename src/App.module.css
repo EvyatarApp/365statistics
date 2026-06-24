@@ -1,0 +1,88 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-accent);
+  padding: 14px 0;
+}
+
+.groupName {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.resetBtn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 4px 8px;
+}
+
+.resetBtn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.main {
+  flex: 1;
+}
+
+.landing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  gap: 40px;
+}
+
+.landingTitle {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.landingButtons {
+  display: flex;
+  gap: 20px;
+}
+
+.groupBtn {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  border-radius: var(--radius);
+  padding: 20px 48px;
+  font-size: 18px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.groupBtn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
