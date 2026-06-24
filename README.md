@@ -7,10 +7,10 @@ top scorers and more. Built with React + Vite.
 
 The app decides what to show based on whether config was baked in at build time:
 
-| Build | Env vars | Behavior |
-|---|---|---|
-| `npm run build` | none | **Setup screen** — each user enters their own group number + token. Best for a public deploy. |
-| `npm run build:mitzpe` / `build:grasshoppers` | token + group baked in | **No setup screen** — goes straight to the dashboard for that group. |
+| Env vars at build | Behavior |
+|---|---|
+| none (`npm run build`) | **Setup screen** — each user enters their own group number + token. Best for a public deploy. |
+| `VITE_BOLAO_TOKEN` + `VITE_GROUP_ID` set | **No setup screen** — goes straight to the dashboard for that group. |
 
 Config resolution order: **localStorage → env**. Once a user fills the setup
 screen, their values are stored in `localStorage` (browser-only) and used on every
@@ -34,19 +34,19 @@ The token stays in your browser only — it is never sent anywhere except the Bo
 
 ```bash
 npm install
-npm run dev            # generic mode → setup screen
-npm run dev:mitzpe     # baked-in group (needs .env.mitzpe)
+npm run dev            # setup screen — enter group number + token
 ```
 
 ## Deploy (e.g. Netlify)
 
-- **Public site:** build command `npm run build`, publish directory `dist`.
-- **Private group site:** set `VITE_BOLAO_TOKEN`, `VITE_GROUP_ID`, `VITE_GROUP_NAME`
-  in the Netlify environment (or a local `.env.<mode>` file) and build with the
-  matching script.
+Build command `npm run build`, publish directory `dist`. Each visitor enters their
+own group number + token on the setup screen.
+
+To pre-configure a build for a single group (skip the setup screen), set
+`VITE_BOLAO_TOKEN`, `VITE_GROUP_ID` and `VITE_GROUP_NAME` in the build environment.
 
 ## Environment files
 
-Copy `.env.example` to `.env.<mode>` and fill in values only for a private build.
-**Never commit a file containing a real token** — `.env*` is gitignored (except
-`.env.example`).
+Copy `.env.example` to `.env.local` and fill in values only if you want a
+pre-configured build. **Never commit a file containing a real token** — `.env*`
+is gitignored (except `.env.example`).
