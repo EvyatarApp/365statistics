@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { setToken, setGroupId, setGroupName } from '../api';
+import { setToken, setGroupId, setGroupName, getToken } from '../api';
 import styles from './TokenSetup.module.css';
 
 export default function TokenSetup({ onDone }: { onDone: () => void }) {
   const [groupId, setGroupIdValue] = useState('');
   const [groupName, setGroupNameValue] = useState('');
-  const [token, setTokenValue] = useState('');
+  const [token, setTokenValue] = useState(getToken());
   const [error, setError] = useState('');
 
   function save() {

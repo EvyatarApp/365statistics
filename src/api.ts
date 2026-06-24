@@ -42,6 +42,12 @@ export function clearConfig() {
   localStorage.removeItem(GROUP_NAME_KEY);
 }
 
+/** Clears the selected group but keeps the token, so the user can view another group. */
+export function clearGroup() {
+  localStorage.removeItem(GROUP_ID_KEY);
+  localStorage.removeItem(GROUP_NAME_KEY);
+}
+
 function headers(): HeadersInit {
   return { Authorization: getToken() };
 }
