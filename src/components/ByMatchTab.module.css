@@ -176,3 +176,31 @@
   padding: 4px 2px 8px;
   letter-spacing: 0.3px;
 }
+
+.showMoreRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0 10px;
+}
+
+.showMoreInfo {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.showMoreBtn {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.showMoreBtn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}

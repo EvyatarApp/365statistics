@@ -1,7 +1,12 @@
+import { useState } from 'react';
 import type { GroupData, Game } from '../types';
 import { classifyOutcome } from '../types';
 import { projectOutcome } from '../utils';
+import MemberPicker from './MemberPicker';
 import styles from './ByMatchTab.module.css';
+
+// How many members' bets to show per match before "show 50 more" / search.
+const MATCH_CAP = 50;
 
 function MatchCard({ game, data, isLive }: { game: Game; data: GroupData; isLive: boolean }) {
   const [home, away] = game.competitors;
@@ -9,12 +14,16 @@ function MatchCard({ game, data, isLive }: { game: Game; data: GroupData; isLive
   // home-away to match the title order ({home} — {away}).
   const liveScore = isLive ? `${game.scores.team2}′-${game.scores.team1}′` : `${game.scores.team2}-${game.scores.team1}`;
 
+  const [shown, setShown] = useState(MATCH_CAP);
+  const [pins, setPins] = useState<number[]>([]);
+
   const memberBets = data.table.members.map((m) => {
     const mp = data.memberPredictions.find((p) => p.userID === m.userID);
     const g = mp?.games.find((gg) => gg.gameID === game.gameID);
     return { member: m, bet: g?.gameBet ?? null };
   });
 
+  // Distribution always reflects EVERYONE, regardless of how many bets are shown.
   const dist: Record<string, number> = {};
   for (const { bet } of memberBets) {
     if (bet?.selection) {
@@ -23,6 +32,19 @@ function MatchCard({ game, data, isLive }: { game: Game; data: GroupData; isLive
     }
   }
   const distSorted = Object.entries(dist).sort((a, b) => b[1] - a[1]);
+
+  // Bets shown: the first `shown` (by ranking) plus any pinned members.
+  const capped = memberBets.length > MATCH_CAP;
+  const visibleIds = new Set<number>();
+  memberBets.slice(0, capped ? shown : memberBets.length).forEach((b) => visibleIds.add(b.member.userID));
+  pins.forEach((id) => visibleIds.add(id));
+  const visibleBets = memberBets.filter((b) => visibleIds.has(b.member.userID));
+  const addable = memberBets
+    .filter((b) => !visibleIds.has(b.member.userID))
+    .map((b) => ({ userID: b.member.userID, name: b.member.name }));
+  const pinned = memberBets
+    .filter((b) => pins.includes(b.member.userID))
+    .map((b) => ({ userID: b.member.userID, name: b.member.name }));
 
   return (
     <div className={styles.matchCard}>
@@ -42,8 +64,17 @@ function MatchCard({ game, data, isLive }: { game: Game; data: GroupData; isLive
         </div>
       )}
 
+      {capped && (
+        <MemberPicker
+          addable={addable}
+          pinned={pinned}
+          onAdd={(id) => setPins((p) => [...p, id])}
+          onRemove={(id) => setPins((p) => p.filter((x) => x !== id))}
+        />
+      )}
+
       <div className={styles.predictionsGrid}>
-        {memberBets.map(({ member, bet }) => {
+        {visibleBets.map(({ member, bet }) => {
           const betStr = bet?.selection ? `${bet.selection.team2}-${bet.selection.team1}` : null;
 
           let o: ReturnType<typeof classifyOutcome>;
@@ -73,6 +104,22 @@ function MatchCard({ game, data, isLive }: { game: Game; data: GroupData; isLive
           );
         })}
       </div>
+
+      {capped && (
+        <div className={styles.showMoreRow}>
+          <span className={styles.showMoreInfo}>
+            מציג {Math.min(shown, memberBets.length)} מתוך {memberBets.length}
+          </span>
+          {shown < memberBets.length && (
+            <button
+              className={styles.showMoreBtn}
+              onClick={() => setShown((s) => s + MATCH_CAP)}
+            >
+              הצג עוד {Math.min(MATCH_CAP, memberBets.length - shown)}
+            </button>
+          )}
+        </div>
+      )}
 
       <div className={styles.distSection}>
         <div className={styles.distTitle}>התפלגות תחזיות</div>

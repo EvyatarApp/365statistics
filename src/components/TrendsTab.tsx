@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   BarChart, Bar, Cell, LabelList, Legend, ComposedChart, Scatter,
@@ -5,6 +6,7 @@ import {
 import type { GroupData, Member } from '../types';
 import { classifyOutcome } from '../types';
 import { buildRoundMap, ROUND_DEFS } from '../rounds';
+import MemberPicker from './MemberPicker';
 import styles from './TrendsTab.module.css';
 
 // Distinct colors for up to 20 players
@@ -14,6 +16,34 @@ const PLAYER_COLORS = [
   '#eab308','#8b5cf6','#f43f5e','#10b981','#60a5fa',
   '#fb923c','#4ade80','#c084fc','#34d399','#fbbf24',
 ];
+
+// Per-chart caps for big groups (the rest of the players are still reachable via
+// the per-chart search). Aggregate charts (distributions, controversy, hit-rate,
+// goals) are not capped because they don't draw one series per member.
+const POINTS_CAP = 15;
+const RANK_CAP = 15;
+const STREAKS_CAP = 20;
+const HIDDEN_CAP = 40;
+const MATRIX_CAP = 30;
+
+// Top-N (by the list's own order) plus any pinned members, preserving order.
+function pickVisible<T extends { userID: number }>(sorted: T[], cap: number, pinned: number[]): T[] {
+  const ids = new Set<number>();
+  sorted.slice(0, cap).forEach((x) => ids.add(x.userID));
+  pinned.forEach((id) => ids.add(id));
+  return sorted.filter((x) => ids.has(x.userID));
+}
+
+// Hard cap (used by the matrix, which must stay <= cap x cap): pinned first, then
+// fill from the top of the list until the cap is reached.
+function pickCapped<T extends { userID: number }>(sorted: T[], cap: number, pinned: number[]): T[] {
+  const ids = new Set<number>(pinned);
+  for (const x of sorted) {
+    if (ids.size >= cap) break;
+    ids.add(x.userID);
+  }
+  return sorted.filter((x) => ids.has(x.userID));
+}
 
 function buildPointsOverTime(data: GroupData) {
   const playedGames = [...data.games.filter((g) => g.status === 3)]
@@ -160,7 +190,7 @@ function buildUniqueHits(data: GroupData) {
   }
 
   return [...data.table.members]
-    .map((m) => ({ name: firstName(m.name), count: counts.get(m.userID) ?? 0 }))
+    .map((m) => ({ userID: m.userID, name: firstName(m.name), count: counts.get(m.userID) ?? 0 }))
     .filter((r) => r.count > 0)
     .sort((a, b) => b.count - a.count);
 }
@@ -267,7 +297,7 @@ function buildStreaks(data: GroupData) {
         }
       }
       current = running;
-      return { name: firstName(m.name), longest, current };
+      return { userID: m.userID, name: firstName(m.name), longest, current };
     })
     .filter((r) => r.longest > 0)
     .sort((a, b) => b.longest - a.longest || b.current - a.current);
@@ -275,6 +305,12 @@ function buildStreaks(data: GroupData) {
 
 export default function TrendsTab({ data }: { data: GroupData }) {
   const playedCount = data.games.filter((g) => g.status === 3).length;
+  // Per-chart pinned members (added via each chart's search box).
+  const [pointsPins, setPointsPins] = useState<number[]>([]);
+  const [rankPins, setRankPins] = useState<number[]>([]);
+  const [streakPins, setStreakPins] = useState<number[]>([]);
+  const [hiddenPins, setHiddenPins] = useState<number[]>([]);
+  const [matrixPins, setMatrixPins] = useState<number[]>([]);
 
   if (playedCount === 0) {
     return <div className={styles.empty}>אין משחקים שהסתיימו עדיין</div>;
@@ -290,6 +326,23 @@ export default function TrendsTab({ data }: { data: GroupData }) {
   const { members: simMembers, matrix: simMatrix } = buildSimilarityMatrix(data);
   const goalsCompare = buildGoalsCompare(data);
   const streaks = buildStreaks(data);
+
+  const totalMembers = members.length;
+
+  // Visible subsets + the addable/pinned lists each chart's search box needs.
+  const pointsMembers = pickVisible(members, POINTS_CAP, pointsPins);
+  const rankMembers = pickVisible(members, RANK_CAP, rankPins);
+  const streakRows = pickVisible(streaks, STREAKS_CAP, streakPins);
+  const hiddenRows = pickVisible(uniqueHits, HIDDEN_CAP, hiddenPins);
+  const matrixMembers = pickCapped(simMembers, MATRIX_CAP, matrixPins);
+  const simIndex = new Map(simMembers.map((m, i) => [m.userID, i]));
+
+  const notIn = <T extends { userID: number }>(all: T[], visible: T[]) => {
+    const shown = new Set(visible.map((x) => x.userID));
+    return all.filter((x) => !shown.has(x.userID));
+  };
+  const pinnedOf = <T extends { userID: number }>(all: T[], pins: number[]) =>
+    all.filter((x) => pins.includes(x.userID));
 
   return (
     <div className={styles.wrap}>
@@ -357,9 +410,20 @@ export default function TrendsTab({ data }: { data: GroupData }) {
       {/* Points over time */}
       <div className={styles.section}>
         <div className={styles.sectionTitle}>נקודות מצטברות לאורך הטורניר</div>
-        <div className={styles.sectionSub}>נקודות שנצברו ממשחקי תחזיות (לא כולל בונוסים)</div>
+        <div className={styles.sectionSub}>
+          נקודות שנצברו ממשחקי תחזיות (לא כולל בונוסים)
+          {totalMembers > POINTS_CAP && ` — מוצגים ${POINTS_CAP} המובילים`}
+        </div>
+        {totalMembers > POINTS_CAP && (
+          <MemberPicker
+            addable={notIn(members, pointsMembers)}
+            pinned={pinnedOf(members, pointsPins)}
+            onAdd={(id) => setPointsPins((p) => [...p, id])}
+            onRemove={(id) => setPointsPins((p) => p.filter((x) => x !== id))}
+          />
+        )}
         <div className={styles.legend}>
-          {members.map((m, i) => (
+          {pointsMembers.map((m, i) => (
             <div key={m.userID} className={styles.legendItem}>
               <div className={styles.legendLine} style={{ background: PLAYER_COLORS[i % PLAYER_COLORS.length] }} />
               {m.name}
@@ -377,7 +441,7 @@ export default function TrendsTab({ data }: { data: GroupData }) {
                 labelStyle={{ color: 'var(--color-text)', fontWeight: 600 }}
                 itemStyle={{ color: 'var(--color-text-muted)' }}
               />
-              {members.map((m, i) => (
+              {pointsMembers.map((m, i) => (
                 <Line
                   key={m.userID}
                   type="monotone"
@@ -422,9 +486,20 @@ export default function TrendsTab({ data }: { data: GroupData }) {
       {/* #1 — Rank over time */}
       <div className={styles.section}>
         <div className={styles.sectionTitle}>דירוג לאורך הזמן</div>
-        <div className={styles.sectionSub}>המיקום בטבלה אחרי כל משחק (1 = ראשון; ככל שלמעלה — טוב יותר)</div>
+        <div className={styles.sectionSub}>
+          המיקום בטבלה אחרי כל משחק (1 = ראשון; ככל שלמעלה — טוב יותר)
+          {totalMembers > RANK_CAP && ` — מוצגים ${RANK_CAP} המובילים`}
+        </div>
+        {totalMembers > RANK_CAP && (
+          <MemberPicker
+            addable={notIn(members, rankMembers)}
+            pinned={pinnedOf(members, rankPins)}
+            onAdd={(id) => setRankPins((p) => [...p, id])}
+            onRemove={(id) => setRankPins((p) => p.filter((x) => x !== id))}
+          />
+        )}
         <div className={styles.legend}>
-          {members.map((m, i) => (
+          {rankMembers.map((m, i) => (
             <div key={m.userID} className={styles.legendItem}>
               <div className={styles.legendLine} style={{ background: PLAYER_COLORS[i % PLAYER_COLORS.length] }} />
               {m.name}
@@ -436,14 +511,14 @@ export default function TrendsTab({ data }: { data: GroupData }) {
             <LineChart data={rankData} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="label" tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }} />
-              <YAxis reversed allowDecimals={false} domain={[1, members.length]} tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }} />
+              <YAxis reversed allowDecimals={false} domain={[1, totalMembers]} tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }} />
               <Tooltip
                 contentStyle={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 8, direction: 'rtl' }}
                 labelStyle={{ color: 'var(--color-text)', fontWeight: 600 }}
                 itemStyle={{ color: 'var(--color-text-muted)' }}
                 formatter={(v, name) => [`מקום ${v}`, name as string]}
               />
-              {members.map((m, i) => (
+              {rankMembers.map((m, i) => (
                 <Line
                   key={m.userID}
                   type="monotone"
@@ -490,56 +565,82 @@ export default function TrendsTab({ data }: { data: GroupData }) {
       {/* #6 — Streaks */}
       <div className={styles.section}>
         <div className={styles.sectionTitle}>רצפים חמים</div>
-        <div className={styles.sectionSub}>הפס = רצף הפגיעות הארוך ביותר (בול או כיוון). הנקודה = הרצף הנוכחי</div>
+        <div className={styles.sectionSub}>
+          הפס = רצף הפגיעות הארוך ביותר (בול או כיוון). הנקודה = הרצף הנוכחי
+          {streaks.length > STREAKS_CAP && ` — מוצגים ${STREAKS_CAP} המובילים`}
+        </div>
         {streaks.length === 0 ? (
           <div className={styles.note}>אין עדיין רצפים</div>
         ) : (
-          <div className={styles.chartWrap}>
-            <ResponsiveContainer width="100%" height={Math.max(180, streaks.length * 34)}>
-              <ComposedChart layout="vertical" data={streaks} margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
-                <XAxis type="number" allowDecimals={false} tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }} />
-                <YAxis type="category" dataKey="name" width={90} tick={{ fill: 'var(--color-text)', fontSize: 12 }} />
-                <Tooltip
-                  cursor={{ fill: 'transparent' }}
-                  contentStyle={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 8, direction: 'rtl' }}
-                  labelStyle={{ color: 'var(--color-accent)', fontWeight: 700 }}
-                />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="longest" name="רצף שיא" radius={[0, 4, 4, 0]} fill="#f97316" barSize={14}>
-                  <LabelList dataKey="longest" position="right" style={{ fill: 'var(--color-text)', fontSize: 12, fontWeight: 600 }} />
-                </Bar>
-                <Scatter dataKey="current" name="רצף נוכחי" fill="#22c55e" shape="circle" />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
+          <>
+            {streaks.length > STREAKS_CAP && (
+              <MemberPicker
+                addable={notIn(streaks, streakRows)}
+                pinned={pinnedOf(streaks, streakPins)}
+                onAdd={(id) => setStreakPins((p) => [...p, id])}
+                onRemove={(id) => setStreakPins((p) => p.filter((x) => x !== id))}
+              />
+            )}
+            <div className={styles.chartWrap}>
+              <ResponsiveContainer width="100%" height={Math.max(180, streakRows.length * 34)}>
+                <ComposedChart layout="vertical" data={streakRows} margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
+                  <XAxis type="number" allowDecimals={false} tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }} />
+                  <YAxis type="category" dataKey="name" width={90} tick={{ fill: 'var(--color-text)', fontSize: 12 }} />
+                  <Tooltip
+                    cursor={{ fill: 'transparent' }}
+                    contentStyle={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 8, direction: 'rtl' }}
+                    labelStyle={{ color: 'var(--color-accent)', fontWeight: 700 }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="longest" name="רצף שיא" radius={[0, 4, 4, 0]} fill="#f97316" barSize={14}>
+                    <LabelList dataKey="longest" position="right" style={{ fill: 'var(--color-text)', fontSize: 12, fontWeight: 600 }} />
+                  </Bar>
+                  <Scatter dataKey="current" name="רצף נוכחי" fill="#22c55e" shape="circle" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </>
         )}
       </div>
 
       {/* #2 — Hidden card: unique correct predictions */}
       <div className={styles.section}>
         <div className={styles.sectionTitle}>קלף נסתר 🃏</div>
-        <div className={styles.sectionSub}>ניחושים שרק שחקן אחד העז לנחש — ופגע בול</div>
+        <div className={styles.sectionSub}>
+          ניחושים שרק שחקן אחד העז לנחש — ופגע בול
+          {uniqueHits.length > HIDDEN_CAP && ` — מוצגים ${HIDDEN_CAP} המובילים`}
+        </div>
         {uniqueHits.length === 0 ? (
           <div className={styles.note}>אין עדיין ניחושים ייחודיים שפגעו בול</div>
         ) : (
-          <div className={styles.chartWrap}>
-            <ResponsiveContainer width="100%" height={Math.max(160, uniqueHits.length * 30)}>
-              <BarChart layout="vertical" data={uniqueHits} margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
-                <XAxis type="number" allowDecimals={false} tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }} />
-                <YAxis type="category" dataKey="name" width={90} tick={{ fill: 'var(--color-text)', fontSize: 12 }} />
-                <Tooltip
-                  contentStyle={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 8, direction: 'rtl' }}
-                  formatter={(v) => [`${v} פעמים`, 'קלף נסתר']}
-                  labelStyle={{ color: 'var(--color-accent)', fontWeight: 700 }}
-                />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="#a855f7">
-                  <LabelList dataKey="count" position="right" style={{ fill: 'var(--color-text)', fontSize: 12, fontWeight: 600 }} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <>
+            {uniqueHits.length > HIDDEN_CAP && (
+              <MemberPicker
+                addable={notIn(uniqueHits, hiddenRows)}
+                pinned={pinnedOf(uniqueHits, hiddenPins)}
+                onAdd={(id) => setHiddenPins((p) => [...p, id])}
+                onRemove={(id) => setHiddenPins((p) => p.filter((x) => x !== id))}
+              />
+            )}
+            <div className={styles.chartWrap}>
+              <ResponsiveContainer width="100%" height={Math.max(160, hiddenRows.length * 30)}>
+                <BarChart layout="vertical" data={hiddenRows} margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
+                  <XAxis type="number" allowDecimals={false} tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }} />
+                  <YAxis type="category" dataKey="name" width={90} tick={{ fill: 'var(--color-text)', fontSize: 12 }} />
+                  <Tooltip
+                    contentStyle={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 8, direction: 'rtl' }}
+                    formatter={(v) => [`${v} פעמים`, 'קלף נסתר']}
+                    labelStyle={{ color: 'var(--color-accent)', fontWeight: 700 }}
+                  />
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="#a855f7">
+                    <LabelList dataKey="count" position="right" style={{ fill: 'var(--color-text)', fontSize: 12, fontWeight: 600 }} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </>
         )}
       </div>
 
@@ -571,37 +672,55 @@ export default function TrendsTab({ data }: { data: GroupData }) {
       {/* #4 — Similarity matrix */}
       <div className={styles.section}>
         <div className={styles.sectionTitle}>מי הכי דומה למי</div>
-        <div className={styles.sectionSub}>אחוז הניחושים הזהים בין כל שני שחקנים (ירוק כהה = דומים יותר)</div>
+        <div className={styles.sectionSub}>
+          אחוז הניחושים הזהים בין כל שני שחקנים (ירוק כהה = דומים יותר)
+          {simMembers.length > MATRIX_CAP && ` — מוצגים עד ${MATRIX_CAP} שחקנים`}
+        </div>
+        {simMembers.length > MATRIX_CAP && (
+          <MemberPicker
+            addable={notIn(simMembers, matrixMembers)}
+            pinned={pinnedOf(simMembers, matrixPins)}
+            onAdd={(id) => setMatrixPins((p) => [...p, id])}
+            onRemove={(id) => setMatrixPins((p) => p.filter((x) => x !== id))}
+          />
+        )}
         <div className={styles.matrixWrap}>
           <table className={styles.matrix}>
             <thead>
               <tr>
                 <th className={styles.matrixCorner}></th>
-                {simMembers.map((m) => (
+                {matrixMembers.map((m) => (
                   <th key={m.userID} className={styles.matrixHead}>{firstName(m.name)}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {simMembers.map((rowM, ri) => (
-                <tr key={rowM.userID}>
-                  <th className={styles.matrixRowHead}>{firstName(rowM.name)}</th>
-                  {simMatrix[ri].map((pct, ci) => (
-                    <td
-                      key={ci}
-                      className={styles.matrixCell}
-                      style={{
-                        // higher % => darker green (lower lightness)
-                        background: pct === null ? 'var(--color-surface-2)' : `hsl(145, 55%, ${70 - (pct / 100) * 45}%)`,
-                        color: pct === null ? 'var(--color-text-muted)' : pct >= 50 ? '#eafff2' : '#0b1f12',
-                      }}
-                      title={pct === null ? '' : `${firstName(rowM.name)} ↔ ${firstName(simMembers[ci].name)}: ${pct}%`}
-                    >
-                      {pct === null ? '' : `${pct}%`}
-                    </td>
-                  ))}
-                </tr>
-              ))}
+              {matrixMembers.map((rowM) => {
+                const ri = simIndex.get(rowM.userID)!;
+                return (
+                  <tr key={rowM.userID}>
+                    <th className={styles.matrixRowHead}>{firstName(rowM.name)}</th>
+                    {matrixMembers.map((colM) => {
+                      const ci = simIndex.get(colM.userID)!;
+                      const pct = simMatrix[ri][ci];
+                      return (
+                        <td
+                          key={colM.userID}
+                          className={styles.matrixCell}
+                          style={{
+                            // higher % => darker green (lower lightness)
+                            background: pct === null ? 'var(--color-surface-2)' : `hsl(145, 55%, ${70 - (pct / 100) * 45}%)`,
+                            color: pct === null ? 'var(--color-text-muted)' : pct >= 50 ? '#eafff2' : '#0b1f12',
+                          }}
+                          title={pct === null ? '' : `${firstName(rowM.name)} ↔ ${firstName(colM.name)}: ${pct}%`}
+                        >
+                          {pct === null ? '' : `${pct}%`}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

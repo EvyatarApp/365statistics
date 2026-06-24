@@ -1,8 +1,13 @@
+import { useState } from 'react';
 import type { GroupData } from '../types';
 import { classifyOutcome } from '../types';
+import Pager from './Pager';
 import styles from './RankingTab.module.css';
 
+const PER_PAGE = 100;
+
 export default function RankingTab({ data }: { data: GroupData }) {
+  const [page, setPage] = useState(0);
   const playedGames = data.games.filter((g) => g.status === 3);
   const total = playedGames.length;
 
@@ -24,6 +29,10 @@ export default function RankingTab({ data }: { data: GroupData }) {
       return { m, exact, direction, miss, acc };
     });
 
+  const pageCount = Math.max(1, Math.ceil(rows.length / PER_PAGE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageRows = rows.slice(safePage * PER_PAGE, safePage * PER_PAGE + PER_PAGE);
+
   return (
     <div className={styles.wrap}>
       <table className={styles.table}>
@@ -39,7 +48,7 @@ export default function RankingTab({ data }: { data: GroupData }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ m, exact, direction, miss, acc }) => (
+          {pageRows.map(({ m, exact, direction, miss, acc }) => (
             <tr key={m.userID}>
               <td className={styles.rank}>{m.rank}</td>
               <td className={styles.name}>{m.name}</td>
@@ -59,6 +68,16 @@ export default function RankingTab({ data }: { data: GroupData }) {
           ))}
         </tbody>
       </table>
+      {pageCount > 1 && (
+        <Pager
+          page={safePage}
+          pageCount={pageCount}
+          total={rows.length}
+          perPage={PER_PAGE}
+          onPrev={() => setPage((p) => Math.max(0, p - 1))}
+          onNext={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+        />
+      )}
     </div>
   );
 }

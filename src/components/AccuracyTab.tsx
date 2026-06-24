@@ -1,8 +1,13 @@
+import { useState } from 'react';
 import type { GroupData } from '../types';
 import { classifyOutcome } from '../types';
+import Pager from './Pager';
 import styles from './AccuracyTab.module.css';
 
+const PER_PAGE = 100;
+
 export default function AccuracyTab({ data }: { data: GroupData }) {
+  const [page, setPage] = useState(0);
   const playedGames = data.games.filter((g) => g.status === 3);
 
   if (playedGames.length === 0) {
@@ -29,6 +34,10 @@ export default function AccuracyTab({ data }: { data: GroupData }) {
       return { m, exact, direction, miss, pct, total };
     });
 
+  const pageCount = Math.max(1, Math.ceil(rows.length / PER_PAGE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageRows = rows.slice(safePage * PER_PAGE, safePage * PER_PAGE + PER_PAGE);
+
   return (
     <div className={styles.wrap}>
       <div className={styles.legend}>
@@ -47,7 +56,7 @@ export default function AccuracyTab({ data }: { data: GroupData }) {
       </div>
 
       <div className={styles.rows}>
-        {rows.map(({ m, exact, direction, miss, pct }) => {
+        {pageRows.map(({ m, exact, direction, miss, pct }) => {
           const eW = total > 0 ? (exact / total) * 100 : 0;
           const dW = total > 0 ? (direction / total) * 100 : 0;
           const mW = total > 0 ? (miss / total) * 100 : 0;
@@ -76,6 +85,16 @@ export default function AccuracyTab({ data }: { data: GroupData }) {
           );
         })}
       </div>
+      {pageCount > 1 && (
+        <Pager
+          page={safePage}
+          pageCount={pageCount}
+          total={rows.length}
+          perPage={PER_PAGE}
+          onPrev={() => setPage((p) => Math.max(0, p - 1))}
+          onNext={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+        />
+      )}
     </div>
   );
 }
