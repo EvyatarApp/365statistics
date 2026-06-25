@@ -25,25 +25,29 @@ export const ROUND_DEFS: RoundDef[] = [
   { key: 'r32', label: 'שלב 32' },
   { key: 'r16', label: 'שמינית גמר' },
   { key: 'qf', label: 'רבע גמר' },
-  { key: 'sf', label: 'חצי גמר' },
+  { key: 'sf', label: 'חצי גמר + מקום שלישי' },
   { key: 'final', label: 'גמר' },
 ];
 
-// Best-effort mapping for knockout games by stageNum. The knockout games are not
-// present in the API yet (they are added once the bracket is known), so these
-// values are an educated guess and may need adjusting once that data appears.
-// Group-stage games carry a `compGroupName` (e.g. "בית א'") and are handled
-// separately below.
-const KNOCKOUT_BY_STAGE: Record<number, RoundKey> = {
-  2: 'r32',
-  3: 'r16',
-  4: 'qf',
-  5: 'sf',
-  6: 'final',
-};
+// Round is derived from the match number, which equals the `gameID` (group games
+// are matches 1-72, knockout starts at 73). We deliberately key off the number,
+// NOT `compGroupName` (365scores may rename it to a Hebrew stage label) nor
+// `stageNum`. The 2026 schedule has a fixed 104-match layout:
+//   1-72   group stage
+//   73-88  Round of 32      89-96  Round of 16     97-100 Quarter-finals
+//   101-102 Semi-finals     103    3rd-place       104    Final
+// The 3rd-place match (103) scores like a semi-final, so it shares the 'sf' bucket
+// (its tab is labelled "חצי גמר + מקום שלישי").
+function knockoutRound(gameID: number): RoundKey {
+  if (gameID <= 88) return 'r32';
+  if (gameID <= 96) return 'r16';
+  if (gameID <= 100) return 'qf';
+  if (gameID <= 103) return 'sf'; // 101-102 semis + 103 third-place
+  return 'final';
+}
 
 function isGroupGame(g: Game): boolean {
-  return !!(g.compGroupName && g.compGroupName.trim());
+  return g.gameID <= 72;
 }
 
 /**
@@ -62,7 +66,7 @@ export function buildRoundMap(games: Game[]): Map<number, RoundKey> {
     if (isGroupGame(g)) {
       groupGames.push(g);
     } else {
-      map.set(g.gameID, KNOCKOUT_BY_STAGE[g.stageNum] ?? 'r32');
+      map.set(g.gameID, knockoutRound(g.gameID));
     }
   }
 
